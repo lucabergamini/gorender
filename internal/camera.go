@@ -63,7 +63,7 @@ func (c *Camera) RenderPerspective(width int, ratio float64, objs ...Renderable)
 		Add(c.F.J.Mul(HOffset * float64(width) / 2))
 	count := 0
 	for idxW := range width {
-		for idxH := range width {
+		for idxH := range height {
 			// compute the 3D position of the pixel, we sub because of the
 			// we are top left in a right system
 			point := start.Sub(c.F.K.Mul(VOffset * float64(idxH))).
