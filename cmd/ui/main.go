@@ -15,8 +15,6 @@ import (
 
 func main() {
 	engine := internal.NewEngine()
-	// c1, err := internal.NewQuad(internal.K,
-	// 	internal.J.Add(internal.K), internal.J, internal.Zero, internal.WithQuadColor(color.Black))
 	c1, err := internal.NewCube(2, 1, 3)
 	if err != nil {
 		panic(err)

@@ -15,7 +15,7 @@ type Engine struct {
 
 func NewEngine() *Engine {
 	return &Engine{
-		camera:   Camera{ZeroFrame, math.Pi / 4},
+		camera:   Camera{ZeroFrame, math.Pi / 2},
 		entities: make(map[string]Renderable),
 	}
 }

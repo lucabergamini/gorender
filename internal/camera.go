@@ -1,8 +1,8 @@
 package internal
 
 import (
+	"context"
 	"image"
-	"image/color"
 	"math"
 )
 
@@ -20,6 +20,37 @@ func (f Frame) Move(v Vector) Frame {
 
 func (f Frame) Rotate(axis Line, angle Radian) Frame {
 	return Frame{f.I.Rotate(axis, angle), f.J.Rotate(axis, angle), f.K.Rotate(axis, angle), f.P.Rotate(axis, angle)}
+}
+
+type RenderPool struct {
+	poolSize int
+	inChan   chan func() error
+	outChan  chan error
+	ctx      context.Context
+}
+
+func newRenderPool(workerNum, expectedJobs int, ctx context.Context) *RenderPool {
+	return &RenderPool{
+		poolSize: workerNum,
+		inChan:   make(chan func() error, workerNum),
+		outChan:  make(chan error, expectedJobs),
+		ctx:      ctx,
+	}
+}
+
+func (rp *RenderPool) Start() {
+	for range rp.poolSize {
+		go func() {
+			for {
+				select {
+				case <-rp.ctx.Done():
+					return
+				case work := <-rp.inChan:
+					rp.outChan <- work()
+				}
+			}
+		}()
+	}
 }
 
 type Camera struct {
@@ -61,38 +92,46 @@ func (c *Camera) RenderPerspective(width int, ratio float64, objs ...Renderable)
 	// move start to top left position
 	start = start.Add(c.F.K.Mul(VOffset * float64(height) / 2)).
 		Add(c.F.J.Mul(HOffset * float64(width) / 2))
-	count := 0
+
+	ctx, cancel := context.WithCancel(context.Background())
+	pool := newRenderPool(16, width, ctx)
+	pool.Start()
+	defer cancel()
+
 	for idxW := range width {
-		for idxH := range height {
-			// compute the 3D position of the pixel, we sub because of the
-			// we are top left in a right system
-			point := start.Sub(c.F.K.Mul(VOffset * float64(idxH))).
-				Sub(c.F.J.Mul(HOffset * float64(idxW)))
-			// build a line starting from camera and passing through the point
-			rayLine := NewLine(c.F.P, point.Sub(c.F.P))
-			var inter *Intersection
-			for _, obj := range objs {
-				newInter := obj.Intersect(&rayLine)
-				if newInter == nil {
-					continue
+		pool.inChan <- func() error {
+			for idxH := range height {
+				// compute the 3D position of the pixel, we sub because of the
+				// we are top left in a right system
+				point := start.Sub(c.F.K.Mul(VOffset * float64(idxH))).
+					Sub(c.F.J.Mul(HOffset * float64(idxW)))
+				// build a line starting from camera and passing through the point
+				rayLine := NewLine(c.F.P, point.Sub(c.F.P))
+				var inter *Intersection
+				for _, obj := range objs {
+					newInter := obj.Intersect(&rayLine)
+					if newInter == nil {
+						continue
+					}
+					// if too close or behind just ignore the intersection
+					if newInter.SignedDist <= focDis {
+						continue
+					}
+					// if no current intersection or closer then current replace
+					if inter == nil || newInter.SignedDist < inter.SignedDist {
+						inter = newInter
+					}
 				}
-				// if too close or behind just ignore the intersection
-				if newInter.SignedDist <= focDis {
-					continue
-				}
-				// if no current intersection or closer then current replace
-				if inter == nil || newInter.SignedDist < inter.SignedDist {
-					inter = newInter
+				if inter != nil {
+					render.Set(idxW, idxH, inter.Color)
 				}
 			}
-			if inter == nil {
-				continue
-			}
-			count++
-			r, g, b, a := inter.Color.RGBA()
-			render.SetRGBA(idxW, idxH, color.RGBA{uint8(r), uint8(g),
-				uint8(b), uint8(a)})
+			return nil
 		}
+	}
+
+	for range width {
+		<-pool.outChan
 	}
 	return render
 }
