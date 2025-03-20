@@ -6,12 +6,40 @@ import (
 	"math"
 )
 
+type trianglePlaneData struct {
+	plane      Plane
+	axisX      Vector
+	axisY      Vector
+	p0, p1, p2 Vector2D
+}
+
+func newTrianglePlaneData(t *Triangle) trianglePlaneData {
+	tpd := trianglePlaneData{}
+	diff01 := t.P0.Sub(t.P1).Normalize()
+	diff02 := t.P0.Sub(t.P2).Normalize()
+	// compute a plane on P0
+	normV := diff01.Cross(diff02)
+
+	tpd.plane = NewPlane(t.P0, normV)
+	tpd.axisX = t.P0.Sub(t.P1).Normalize()
+	// we want a vector orthogonal to P0 in the same plane
+	// because NormV is normal to the plane, the cross will be on
+	// the plane and orthoghonal to xAxis
+	tpd.axisY = tpd.axisX.Cross(tpd.plane.NormV).Normalize()
+	tpd.p0 = Vector2D{t.P0.Dot(tpd.axisX), t.P0.Dot(tpd.axisY)}
+	tpd.p1 = Vector2D{t.P1.Dot(tpd.axisX), t.P1.Dot(tpd.axisY)}
+	tpd.p2 = Vector2D{t.P2.Dot(tpd.axisX), t.P2.Dot(tpd.axisY)}
+	return tpd
+}
+
 type Triangle struct {
 	P0, P1, P2 Vector
-	plane      Plane
 	IDGen
 	color     color.Color
 	edgeColor *color.Color
+	// data required for rendering
+	// which can be precomputed
+	planeData trianglePlaneData
 }
 
 type triangleOption func(*Triangle)
@@ -36,9 +64,8 @@ func NewTriangle(p0, p1, p2 Vector, opsf ...triangleOption) (Triangle, error) {
 	if diff01 == diff02 || diff01 == diff12 || diff02 == diff12 {
 		return Triangle{}, fmt.Errorf("degenerate triangle")
 	}
-	// compute a plane on P0
-	normV := diff01.Cross(diff02)
-	t := Triangle{P0: p0, P1: p1, P2: p2, plane: NewPlane(p0, normV), IDGen: IDGen{}}
+	t := Triangle{P0: p0, P1: p1, P2: p2, IDGen: IDGen{}}
+	t.planeData = newTrianglePlaneData(&t)
 	for _, opf := range opsf {
 		opf(&t)
 	}
@@ -50,7 +77,7 @@ func (t Triangle) Move(v Vector) Triangle {
 	newT.P0 = newT.P0.Add(v)
 	newT.P1 = newT.P1.Add(v)
 	newT.P2 = newT.P2.Add(v)
-	newT.plane = newT.plane.Move(v)
+	newT.planeData = newTrianglePlaneData(&newT)
 	newT.IDGen = IDGen{}
 	return newT
 }
@@ -60,37 +87,29 @@ func (t Triangle) Rotate(axis Line, angle Radian) Triangle {
 	newT.P0 = newT.P0.Rotate(axis, angle)
 	newT.P1 = newT.P1.Rotate(axis, angle)
 	newT.P2 = newT.P2.Rotate(axis, angle)
-	newT.plane = newT.plane.Rotate(axis, angle)
+	newT.planeData = newTrianglePlaneData(&newT)
 	newT.IDGen = IDGen{}
 	return newT
 }
 
 func (t *Triangle) barycentric(p *Vector) Vector {
-	// project in 2D by defining a 2D coordinate system
-	xAxis := t.P0.Sub(t.P1).Normalize()
-	// we want a vector orthogonal to P0 in the same plane
-	// because NormV is normal to the plane, the cross will be on
-	// the plane and orthoghonal to xAxis
-	yAxis := xAxis.Cross(t.plane.NormV).Normalize()
-
-	p0x, p0y := t.P0.Dot(xAxis), t.P0.Dot(yAxis)
-	p1x, p1y := t.P1.Dot(xAxis), t.P1.Dot(yAxis)
-	p2x, p2y := t.P2.Dot(xAxis), t.P2.Dot(yAxis)
+	tpd := t.planeData
 	// we keep p in a vector for simplicity
-	p = &Vector{p.Dot(xAxis), p.Dot(yAxis), 1}
+	p = &Vector{p.Dot(tpd.axisX), p.Dot(tpd.axisY), 1}
 	// then we need to invert a 3x3 matrix
-	det := p0x*p1y + p1x*p2y + p2x*p0y - (p0x*p2y + p1x*p0y + p2x*p1y)
+	p0, p1, p2 := tpd.p0, tpd.p1, tpd.p2
+	det := p0.X*p1.Y + p1.X*p2.Y + p2.X*p0.Y - (p0.X*p2.Y + p1.X*p0.Y + p2.X*p1.Y)
 
-	u := Vector{(p1y - p2y) / det, (p2x - p1x) / det, (p1x*p2y - p2x*p1y) / det}.Dot(*p)
-	v := Vector{(p2y - p0y) / det, (p0x - p2x) / det, (p2x*p0y - p0x*p2y) / det}.Dot(*p)
-	w := Vector{(p0y - p1y) / det, (p1x - p0x) / det, (p0x*p1y - p1x*p0y) / det}.Dot(*p)
+	u := Vector{(p1.Y - p2.Y) / det, (p2.X - p1.X) / det, (p1.X*p2.Y - p2.X*p1.Y) / det}.Dot(*p)
+	v := Vector{(p2.Y - p0.Y) / det, (p0.X - p2.X) / det, (p2.X*p0.Y - p0.X*p2.Y) / det}.Dot(*p)
+	w := Vector{(p0.Y - p1.Y) / det, (p1.X - p0.X) / det, (p0.X*p1.Y - p1.X*p0.Y) / det}.Dot(*p)
 	return Vector{u, v, w}
 }
 
-func (t *Triangle) Intersect(l *Line) Intersection {
-	hasPlaneIn, planeInter, lineT := l.IntersectPlane(t.plane)
+func (t *Triangle) Intersect(l *Line) *Intersection {
+	hasPlaneIn, planeInter, lineT := l.IntersectPlane(t.planeData.plane)
 	if !hasPlaneIn {
-		return Intersection{}
+		return nil
 	}
 	barys := t.barycentric(&planeInter)
 	where := inside
@@ -102,13 +121,8 @@ func (t *Triangle) Intersect(l *Line) Intersection {
 				where = corner
 			}
 		} else if bc < 0 {
-			where = outside
-			break
+			return nil
 		}
-		// if bc < -Eps || bc > 1+Eps {
-		// where = outside
-		// break
-		// }
 	}
 
 	color := t.color
@@ -118,14 +132,11 @@ func (t *Triangle) Intersect(l *Line) Intersection {
 	// NOTE(@lberg): we can use the t from the line
 	// to sign the distance so we know if a triangle in behind
 	// or in front of the origin of the line
-	distance := 0.
-	if where != outside {
-		distance = planeInter.Sub(l.P).Norm()
-		if lineT < 0 {
-			distance *= -1
-		}
+	distance := planeInter.Sub(l.P).Norm()
+	if lineT < 0 {
+		distance *= -1
 	}
-	return Intersection{
+	return &Intersection{
 		IntPoint:   planeInter,
 		SignedDist: distance,
 		Color:      color,

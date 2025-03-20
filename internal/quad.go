@@ -76,17 +76,19 @@ func (q Quad) Rotate(axis Line, angle Radian) Quad {
 	return newQ
 }
 
-func (q *Quad) Intersect(l *Line) Intersection {
+func (q *Quad) Intersect(l *Line) *Intersection {
 	int1 := q.t1.Intersect(l)
 	int2 := q.t2.Intersect(l)
+	if int1 == nil {
+		return int2
+	} else if int2 == nil {
+		return int1
+	}
+
 	if int1.Where == inside {
 		return int1
 	} else if int2.Where == inside {
 		return int2
-	} else if int1.Where == outside {
-		return int2
-	} else if int2.Where == outside {
-		return int1
 	}
 	if int1.Where == int2.Where && int1.Where == edge {
 		// use the internal color as this is an internal edge
@@ -98,7 +100,8 @@ func (q *Quad) Intersect(l *Line) Intersection {
 }
 
 type Cube struct {
-	quads []Quad
+	// NOTE(@lberg): pointers so we don't copy them around
+	quads []*Quad
 	IDGen
 }
 
@@ -127,22 +130,21 @@ func NewCube(w, h, d float64) (Cube, error) {
 		if err != nil {
 			return Cube{}, err
 		}
-		cube.quads = append(cube.quads, q)
+		cube.quads = append(cube.quads, &q)
 
 	}
 	return cube, nil
 }
 
-func (c *Cube) Intersect(l *Line) Intersection {
-	bestInt := Intersection{}
+func (c *Cube) Intersect(l *Line) *Intersection {
+	var bestInt *Intersection
 	for _, q := range c.quads {
 		newInt := q.Intersect(l)
-		if newInt.Where == outside {
+		if newInt == nil {
 			continue
 		}
-		if bestInt.Where == outside {
+		if bestInt == nil {
 			bestInt = newInt
-			continue
 		}
 		if newInt.SignedDist < bestInt.SignedDist {
 			bestInt = newInt

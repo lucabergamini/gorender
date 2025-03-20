@@ -70,10 +70,10 @@ func (c *Camera) RenderPerspective(width int, ratio float64, objs ...Renderable)
 				Sub(c.F.J.Mul(HOffset * float64(idxW)))
 			// build a line starting from camera and passing through the point
 			rayLine := NewLine(c.F.P, point.Sub(c.F.P))
-			inter := Intersection{}
-			for _, rend := range objs {
-				newInter := rend.Intersect(&rayLine)
-				if newInter.Where == outside {
+			var inter *Intersection
+			for _, obj := range objs {
+				newInter := obj.Intersect(&rayLine)
+				if newInter == nil {
 					continue
 				}
 				// if too close or behind just ignore the intersection
@@ -81,11 +81,11 @@ func (c *Camera) RenderPerspective(width int, ratio float64, objs ...Renderable)
 					continue
 				}
 				// if no current intersection or closer then current replace
-				if inter.Where == outside || newInter.SignedDist < inter.SignedDist {
+				if inter == nil || newInter.SignedDist < inter.SignedDist {
 					inter = newInter
 				}
 			}
-			if inter.Where == outside {
+			if inter == nil {
 				continue
 			}
 			count++

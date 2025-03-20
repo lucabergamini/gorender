@@ -44,7 +44,7 @@ func TestLineTriangleIntersection(t *testing.T) {
 	// move the triangle further up, this should not intersect
 	triangle = startTriangle.Move(K.Mul(2))
 	intersect = triangle.Intersect(&line)
-	require.Equal(t, outside, intersect.Where)
+	require.Nil(t, intersect)
 	// move the triangle on negative I, this should still intersect
 	triangle = startTriangle.Move(I.Mul(2).Neg())
 	intersect = triangle.Intersect(&line)

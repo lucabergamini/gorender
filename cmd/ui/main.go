@@ -15,23 +15,12 @@ import (
 
 func main() {
 	engine := internal.NewEngine()
-	// t1, err := internal.NewTriangle(internal.K, internal.J, internal.J.Neg(),
-	// 	internal.WithTriangleColor(color.RGBA{255, 0, 0, 255}),
-	// 	internal.WithTriangleEdgeColor(color.Black))
-	// if err != nil {
-	// 	panic(err)
-	// }
+	// c1, err := internal.NewQuad(internal.K,
+	// 	internal.J.Add(internal.K), internal.J, internal.Zero, internal.WithQuadColor(color.Black))
 	c1, err := internal.NewCube(2, 1, 3)
-	// q1, err := internal.NewQuad(internal.K, internal.K.Add(internal.J.Neg()), internal.Zero, internal.J.Neg(),
-	// internal.WithQuadColor(color.RGBA{0, 255, 0, 255}),
-	// internal.WithQuadEdgeColor(color.Black))
-	// t2, err := internal.NewTriangle(internal.K.Mul(2), internal.J, internal.J.Neg(), internal.WithTriangleColor(color.Gray{128}))
 	if err != nil {
 		panic(err)
 	}
-	// t2 = t2.Move(internal.I)
-	// behind camera
-	// t3 := t1.Move(internal.I.Mul(-8))
 
 	engine.Add(&c1)
 	engine.RepositionCamera(func(f internal.Frame) internal.Frame {

@@ -67,10 +67,8 @@ func (v Vector) Normalize() Vector {
 }
 func (v *Vector) Iter() iter.Seq[float64] {
 	return func(yield func(float64) bool) {
-		for _, c := range []float64{v.X, v.Y, v.Z} {
-			if !yield(c) {
-				return
-			}
+		if !yield(v.X) || !yield(v.Y) || !yield(v.Z) {
+			return
 		}
 	}
 }
@@ -91,4 +89,8 @@ func (v Vector) Rotate(axis Line, angle Radian) Vector {
 		Add(axis.Dir.Mul(axis.Dir.Dot(relV)).Mul(1 - cosA))
 	// restore offset
 	return relV.Sub(diff)
+}
+
+type Vector2D struct {
+	X, Y float64
 }

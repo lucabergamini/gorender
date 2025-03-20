@@ -11,8 +11,7 @@ const Eps = 1e-12
 type intersectionType int
 
 const (
-	outside intersectionType = iota
-	inside
+	inside intersectionType = iota + 1
 	corner
 	edge
 )
@@ -25,7 +24,7 @@ type Intersection struct {
 }
 
 type Renderable interface {
-	Intersect(l *Line) Intersection
+	Intersect(l *Line) *Intersection
 	ID() string
 }
 
