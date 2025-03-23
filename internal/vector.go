@@ -63,7 +63,7 @@ func (v Vector) Normalize() Vector {
 	if norm == 0 {
 		norm += Eps
 	}
-	return v.Mul(1 / v.Norm())
+	return v.Mul(1 / norm)
 }
 func (v *Vector) Iter() iter.Seq[float64] {
 	return func(yield func(float64) bool) {

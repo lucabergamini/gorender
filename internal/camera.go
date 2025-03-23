@@ -92,15 +92,14 @@ func (c *Camera) RenderPerspective(width int, ratio float64, objs ...Renderable)
 	// move start to top left position
 	start = start.Add(c.F.K.Mul(VOffset * float64(height) / 2)).
 		Add(c.F.J.Mul(HOffset * float64(width) / 2))
-
 	ctx, cancel := context.WithCancel(context.Background())
 	pool := newRenderPool(16, width, ctx)
 	pool.Start()
 	defer cancel()
 
-	for idxW := range width {
+	for idxH := range height {
 		pool.inChan <- func() error {
-			for idxH := range height {
+			for idxW := range width {
 				// compute the 3D position of the pixel, we sub because of the
 				// we are top left in a right system
 				point := start.Sub(c.F.K.Mul(VOffset * float64(idxH))).

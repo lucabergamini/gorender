@@ -95,14 +95,13 @@ func (t Triangle) Rotate(axis Line, angle Radian) Triangle {
 func (t *Triangle) barycentric(p *Vector) Vector {
 	tpd := t.planeData
 	// we keep p in a vector for simplicity
-	p = &Vector{p.Dot(tpd.axisX), p.Dot(tpd.axisY), 1}
+	pProj := &Vector{p.Dot(tpd.axisX), p.Dot(tpd.axisY), 1}
 	// then we need to invert a 3x3 matrix
 	p0, p1, p2 := tpd.p0, tpd.p1, tpd.p2
 	det := p0.X*p1.Y + p1.X*p2.Y + p2.X*p0.Y - (p0.X*p2.Y + p1.X*p0.Y + p2.X*p1.Y)
-
-	u := Vector{(p1.Y - p2.Y) / det, (p2.X - p1.X) / det, (p1.X*p2.Y - p2.X*p1.Y) / det}.Dot(*p)
-	v := Vector{(p2.Y - p0.Y) / det, (p0.X - p2.X) / det, (p2.X*p0.Y - p0.X*p2.Y) / det}.Dot(*p)
-	w := Vector{(p0.Y - p1.Y) / det, (p1.X - p0.X) / det, (p0.X*p1.Y - p1.X*p0.Y) / det}.Dot(*p)
+	u := Vector{(p1.Y - p2.Y), (p2.X - p1.X), (p1.X*p2.Y - p2.X*p1.Y)}.Dot(*pProj) / det
+	v := Vector{(p2.Y - p0.Y), (p0.X - p2.X), (p2.X*p0.Y - p0.X*p2.Y)}.Dot(*pProj) / det
+	w := Vector{(p0.Y - p1.Y), (p1.X - p0.X), (p0.X*p1.Y - p1.X*p0.Y)}.Dot(*pProj) / det
 	return Vector{u, v, w}
 }
 

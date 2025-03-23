@@ -51,6 +51,14 @@ func TestLineTriangleIntersection(t *testing.T) {
 	require.Equal(t, inside, intersect.Where)
 }
 
+func TestLineTriangleRotationIntersection(t *testing.T) {
+	//  line centred in (-1, 0, 0) and rotate by 45deg on K
+	line := NewLine(I.Neg(), I.Rotate(NewLine(Zero, K), -math.Pi/4))
+	tr, _ := NewTriangle(J, J.Neg(), K)
+	intersect := tr.Intersect(&line)
+	require.NotNil(t, intersect)
+}
+
 func TestFrameRotation(t *testing.T) {
 	f := ZeroFrame
 	f = f.Move(I).Rotate(NewLine(Zero, K), math.Pi/2)
